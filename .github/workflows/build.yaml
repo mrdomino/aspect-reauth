@@ -29,8 +29,9 @@ jobs:
     - name: setup environment
       shell: bash
       run: |
+        set -u
         osname() {
-          case $os in
+          case $github_os in
             macos-latest) echo apple-darwin ;;
             windows-latest) echo pc-windows-msvc ;;
             ubuntu-latest) echo unknown-linux-gnu ;;
@@ -38,7 +39,7 @@ jobs:
           esac
         }
         suffix=
-        if [[ $OS = windows-latest ]]; then
+        if [[ windows-latest = $github_os ]]; then
           suffix=.exe
         fi
         retention_days=
@@ -56,7 +57,7 @@ jobs:
         EOF
       env:
         arch: ${{ matrix.arch }}
-        os: ${{ matrix.os }}
+        github_os: ${{ matrix.os }}
         event_name: ${{ github.event_name }}
 
     - run: sudo sh -c 'apt update && apt install libdbus-1-dev'
