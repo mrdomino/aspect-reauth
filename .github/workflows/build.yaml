@@ -17,39 +17,68 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            target: x86_64-apple-darwin
-            suffix: ""
+            arch: x86_64
           - os: macos-latest
-            target: aarch64-apple-darwin
-            suffix: ""
+            arch: aarch64
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            suffix: ".exe"
+            arch: x86_64
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            suffix: ""
+            arch: x86_64
     steps:
+
+    - name: setup environment
+      shell: bash
+      run: |
+        osname() {
+          case $os in
+            macos-latest) echo apple-darwin ;;
+            windows-latest) echo pc-windows-msvc ;;
+            ubuntu-latest) echo unknown-linux-gnu ;;
+            *) exit 1
+          esac
+        }
+        suffix=
+        if [[ $OS = windows-latest ]]; then
+          suffix=.exe
+        fi
+        retention_days=
+        if [[ pull_request == $event_name ]]; then
+          profile=fastbuild
+          retention_days=7
+        else
+          profile=release
+        fi
+        cat >>$GITHUB_ENV <<EOF
+        target=${arch}-$(osname)
+        suffix=$suffix
+        profile=$profile
+        retention_days=$retention_days
+        EOF
+      env:
+        arch: ${{ matrix.arch }}
+        os: ${{ matrix.os }}
+        event_name: ${{ github.event_name }}
+
     - run: sudo sh -c 'apt update && apt install libdbus-1-dev'
       if: matrix.os == 'ubuntu-latest'
+
     - uses: stairwell-inc/checkout@v4
     - uses: stairwell-inc/cache@v4
       with:
         path: |
           ~/.cargo
           target
-        key: rust-${{ env.RUSTC_VERSION }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        key: rust-${{ env.RUSTC_VERSION }}-${{ env.target }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
         restore-keys: |
-          rust-${{ env.RUSTC_VERSION }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-
-          rust-${{ env.RUSTC_VERSION }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}-
-          rust-${{ env.RUSTC_VERSION }}-${{ matrix.target }}-
-    - run: rustup toolchain install ${{ env.RUSTC_VERSION }} --target ${{ matrix.target }} --profile minimal
+          rust-${{ env.RUSTC_VERSION }}-${{ env.target }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-
+          rust-${{ env.RUSTC_VERSION }}-${{ env.target }}-${{ hashFiles('**/Cargo.lock') }}-
+          rust-${{ env.RUSTC_VERSION }}-${{ env.target }}-
+    - run: rustup toolchain install ${{ env.RUSTC_VERSION }} --target ${{ env.target }} --profile minimal
     - run: rustup default ${{ env.RUSTC_VERSION }}
-    - id: set-profile
-      run: echo profile=${{ github.event_name == 'pull_request' && 'fastbuild' || 'release' }} >> $GITHUB_OUTPUT
-      shell: bash
-    - run: cargo build --locked --profile ${{ steps.set-profile.outputs.profile }} --target ${{ matrix.target }}
+
+    - run: cargo build --locked --profile ${{ env.profile }} --target ${{ env.target }}
     - uses: stairwell-inc/upload-artifact@v4
       with:
-        name: aspect-reauth-${{ matrix.target }}
-        path: target/${{ matrix.target }}/${{ steps.set-profile.outputs.profile }}/aspect-reauth${{ matrix.suffix }}
-        retention-days: ${{ github.event_name == 'pull_request' && 7 || '' }}
+        name: aspect-reauth-${{ env.target }}
+        path: target/${{ env.target }}/${{ env.profile }}/aspect-reauth${{ env.suffix }}
+        retention-days: ${{ env.retention_days }}
