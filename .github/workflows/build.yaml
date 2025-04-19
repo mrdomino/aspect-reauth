@@ -62,7 +62,7 @@ jobs:
         event_name: ${{ github.event_name }}
 
     - run: sudo sh -c 'apt update && apt install libdbus-1-dev'
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu'
 
     - uses: stairwell-inc/checkout@v4
     - uses: stairwell-inc/cache@v4
