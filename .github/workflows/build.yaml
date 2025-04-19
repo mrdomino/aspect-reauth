@@ -49,6 +49,7 @@ jobs:
         else
           profile=release
         fi
+
         cat >>$GITHUB_ENV <<EOF
         target=${arch}-$(osname)
         suffix=$suffix
