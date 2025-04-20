@@ -43,7 +43,7 @@ jobs:
           suffix=.exe
         fi
         retention_days=
-        if [[ pull_request == $event_name ]]; then
+        if [[ pull_request = $event_name ]]; then
           profile=fastbuild
           retention_days=7
         else
